@@ -1,0 +1,17 @@
+[package]
+name = "solAribot-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core types, DEX program IDs, and shared data structures for SolAribot"
+
+[dependencies]
+solana-sdk = { workspace = true }
+solana-program = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+thiserror = { workspace = true }
+bs58 = { workspace = true }
+hex = { workspace = true }
+parking_lot = { workspace = true }

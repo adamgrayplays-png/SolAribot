@@ -1,0 +1,112 @@
+# =============================================================================
+# SolAribot Default Configuration
+# =============================================================================
+# This file contains the default configuration values.
+# Override with environment-specific configs (mainnet.yaml, devnet.yaml)
+# or via environment variables at runtime.
+# =============================================================================
+
+# --- Network ---
+network:
+  # Solana cluster to connect to
+  cluster: "mainnet-beta"  # mainnet-beta | devnet | testnet | localnet
+  # Commitment level
+  commitment: "confirmed"
+  # RPC endpoint configuration
+  rpc:
+    # Primary RPC URL
+    url: "https://api.mainnet-beta.solana.com"
+    # Fallback RPC URLs (comma-separated)
+    fallbacks:
+      - "https://solana-api.projectserum.com"
+      - "https://rpc.ankr.com/solana"
+    # WebSocket URL (auto-derived if empty)
+    ws_url: ""
+    # Request timeout in seconds
+    timeout_secs: 30
+    # Rate limit (requests per second)
+    rate_limit: 100
+
+# --- DEX Configuration ---
+dex:
+  # DEXes to monitor (all enabled by default)
+  enabled:
+    - jupiter
+    - raydium
+    - orca
+    - meteora
+    - lifinity
+    - openbook
+    - phoenix
+  # Polling interval in milliseconds
+  poll_interval_ms: 300
+  # Maximum slippage in basis points (0.5% = 50 bps)
+  max_slippage_bps: 50
+
+# --- Arbitrage Strategy ---
+arbitrage:
+  # Enable/disable the arbitrage engine
+  enabled: true
+  # Minimum profit threshold in SOL (below this, skip)
+  min_profit_sol: 0.001
+  # Maximum position size in SOL per trade
+  max_position_sol: 10.0
+  # Daily loss limit in SOL (bot stops if exceeded)
+  daily_loss_limit_sol: 1.0
+  # Maximum concurrent trades
+  max_concurrent_trades: 3
+  # Cooldown period in seconds between trades on same pair
+  trade_cooldown_secs: 60
+  # Enable multi-hop arbitrage routes
+  multi_hop_enabled: true
+  # Maximum hops per route (2 = triangular, 3+ = complex)
+  max_hops: 3
+
+# --- ML Engine ---
+ml:
+  # Enable ML-based execution prediction
+  enabled: true
+  # Model path (relative to config dir)
+  model_path: "/etc/solAribot/models/execution_predictor.onnx"
+  # Minimum confidence score to execute (0.0 - 1.0)
+  min_confidence: 0.75
+  # Feature cache TTL in seconds
+  feature_cache_ttl_secs: 5
+
+# --- Risk Management ---
+risk:
+  # Maximum daily drawdown in SOL
+  max_daily_drawdown_sol: 5.0
+  # Maximum position size as % of wallet balance
+  max_position_pct: 0.1  # 10%
+  # Stop-loss threshold in SOL per trade
+  stop_loss_sol: 0.05
+  # Require confirmation from multiple RPC nodes
+  require_multi_rpc_confirm: false
+  # Enable sandbox mode (no real trades)
+  sandbox_mode: false
+
+# --- Logging ---
+logging:
+  level: "info"  # trace | debug | info | warn | error
+  format: "json"  # json | text
+  # Log file path (empty = stdout)
+  file: ""
+  # Enable structured JSON logging
+  json: true
+
+# --- Monitoring ---
+monitoring:
+  # Prometheus metrics endpoint
+  metrics_enabled: true
+  metrics_port: 9090
+  # Health check endpoint
+  health_check_port: 8080
+  # Alerting
+  alerts:
+    # Discord webhook URL
+    discord_webhook_url: ""
+    # Telegram bot configuration
+    telegram:
+      bot_token: ""
+      chat_id: ""

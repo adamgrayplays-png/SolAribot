@@ -1,0 +1,43 @@
+# =============================================================================
+# SolAribot TypeScript Orchestrator — Dockerfile
+# =============================================================================
+
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# Install pnpm for workspace support
+RUN npm install -g pnpm
+
+COPY package.json pnpm-lock.yaml* ./
+COPY orchestrator/package.json ./orchestrator/
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile 2>/dev/null || npm install
+
+# Copy source
+COPY orchestrator/src ./orchestrator/src
+
+# Build
+RUN cd orchestrator && npx tsc --build
+
+# ---- Runtime Stage ----
+FROM node:20-slim AS runtime
+
+RUN groupadd -r solAribot && useradd -r -g solAribot -d /app -s /sbin/nologin solAribot
+
+WORKDIR /app
+
+# Copy built artifacts and production deps
+COPY --from=builder /app/orchestrator/dist ./dist
+COPY --from=builder /app/orchestrator/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+
+USER solAribot
+
+EXPOSE 8081
+
+ENV NODE_ENV=production
+
+CMD ["node", "dist/index.js"]

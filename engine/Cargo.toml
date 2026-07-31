@@ -1,0 +1,40 @@
+[package]
+name = "solAribot-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+solana-program = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+solana-transaction-status = "1.18"
+solana-rpc-client-api = "1.18"
+solana-rpc-client = "1.18"
+solana-account-decoder = "1.18"
+bincode = "1.3"
+base64 = "0.22"
+dotenv = "0.15"
+redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
+futures = "0.3"
+dashmap = "5"
+parking_lot = "0.12"
+reqwest = { version = "0.12", features = ["json"] }
+rust_decimal = "1.34"
+rust_decimal_macros = "1.34"
+
+[[bin]]
+name = "solAribot-engine"
+path = "src/main.rs"

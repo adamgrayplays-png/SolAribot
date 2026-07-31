@@ -1,0 +1,157 @@
+# =============================================================================
+# SolAribot — Docker Compose
+# =============================================================================
+# Production deployment: docker compose -f docker-compose.yml --env-file .env up -d
+# Development:       docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# =============================================================================
+
+version: "3.9"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # =====================
+  # Redis — Caching & Pub/Sub
+  # =====================
+  redis:
+    image: redis:7-alpine
+    container_name: solAribot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --save 60 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  # =====================
+  # PostgreSQL — Persistent Storage
+  # =====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: solAribot-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: solAribot
+      POSTGRES_USER: solAribot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solAribot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  # =====================
+  # RPC Health Checker
+  # =====================
+  rpc-health:
+    image: alpine:3.18
+    container_name: solAribot-rpc-health
+    restart: unless-stopped
+    volumes:
+      - ./scripts/healthcheck.sh:/healthcheck.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache curl jq
+        while true; do
+          /healthcheck.sh
+          sleep 30
+        done
+    logging: *default-logging
+
+  # =====================
+  # Rust Engine — Core Arbitrage Engine
+  # =====================
+  engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.engine
+    container_name: solAribot-engine
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      RUST_LOG: ${LOG_LEVEL:-info}
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://solAribot:${POSTGRES_PASSWORD:-changeme}@postgres:5432/solAribot
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL}
+      SOLANA_RPC_FALLBACKS: ${SOLANA_RPC_FALLBACKS}
+      WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY}
+      MIN_PROFIT_THRESHOLD: ${MIN_PROFIT_THRESHOLD:-0.001}
+      MAX_POSITION_SIZE: ${MAX_POSITION_SIZE:-10.0}
+    volumes:
+      - ./config:/etc/solAribot:ro
+    ports:
+      - "8080:8080"
+    logging: *default-logging
+
+  # =====================
+  # TypeScript Orchestrator — Backend API & Strategy
+  # =====================
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    container_name: solAribot-orchestrator
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      engine:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://solAribot:${POSTGRES_PASSWORD:-changeme}@postgres:5432/solAribot
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL}
+      WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY}
+      MIN_PROFIT_THRESHOLD: ${MIN_PROFIT_THRESHOLD:-0.001}
+      MAX_POSITION_SIZE: ${MAX_POSITION_SIZE:-10.0}
+      SLIPPAGE_BPS: ${SLIPPAGE_BPS:-50}
+      DAILY_LOSS_LIMIT: ${DAILY_LOSS_LIMIT:-1.0}
+      DASHBOARD_PORT: "3000"
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+    ports:
+      - "8081:8081"
+    logging: *default-logging
+
+  # =====================
+  # Dashboard — React Frontend
+  # =====================
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: solAribot-dashboard
+    restart: unless-stopped
+    depends_on:
+      - orchestrator
+    ports:
+      - "3000:3000"
+    logging: *default-logging
+
+volumes:
+  redis-data:
+  postgres-data:

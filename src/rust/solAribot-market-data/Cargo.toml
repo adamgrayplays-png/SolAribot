@@ -1,0 +1,25 @@
+[package]
+name = "solAribot-market-data"
+version = "0.1.0"
+edition = "2021"
+description = "Real-time market data engine — WebSocket subscriptions, pool state parsing, in-memory cache"
+
+[dependencies]
+solAribot-core = { path = "../solAribot-core" }
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+solana-account-decoder = { workspace = true }
+solana-program = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+bs58 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+parking_lot = { workspace = true }
+redis = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+anyhow = { workspace = true }

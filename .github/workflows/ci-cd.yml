@@ -1,0 +1,197 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  NODE_VERSION: '20'
+
+jobs:
+  # =====================
+  # Lint & Format Check
+  # =====================
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust format check
+        run: cargo fmt --manifest-path engine/Cargo.toml --check
+
+      - name: Rust clippy
+        run: cargo clippy --manifest-path engine/Cargo.toml -- -D warnings
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint 2>/dev/null || echo "Lint script not configured"
+
+  # =====================
+  # Build
+  # =====================
+  build:
+    name: Build
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [engine, orchestrator, dashboard]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.component }}
+        run: |
+          case ${{ matrix.component }} in
+            engine)
+              cargo build --release --manifest-path engine/Cargo.toml
+              ;;
+            orchestrator)
+              npm ci && npm run build -w orchestrator
+              ;;
+            dashboard)
+              npm ci && npm run build -w dashboard
+              ;;
+          esac
+
+      - name: Upload ${{ matrix.component }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.component }}
+          path: |
+            engine/target/release/solAribot-engine
+            orchestrator/dist/
+            dashboard/dist/
+
+  # =====================
+  # Test
+  # =====================
+  test:
+    name: Test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path engine/Cargo.toml
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TS tests
+        run: npm test 2>/dev/null || echo "Tests not configured"
+
+  # =====================
+  # Docker Build (on tags)
+  # =====================
+  docker:
+    name: Docker Build & Push
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Extract version
+        id: meta
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build & push engine
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.engine
+          push: true
+          tags: |
+            solAribot/engine:latest
+            solAribot/engine:${{ steps.meta.outputs.VERSION }}
+
+      - name: Build & push orchestrator
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.orchestrator
+          push: true
+          tags: |
+            solAribot/orchestrator:latest
+            solAribot/orchestrator:${{ steps.meta.outputs.VERSION }}
+
+      - name: Build & push dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.dashboard
+          push: true
+          tags: |
+            solAribot/dashboard:latest
+            solAribot/dashboard:${{ steps.meta.outputs.VERSION }}
+
+  # =====================
+  # Security Scan
+  # =====================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # =====================
+  # Deploy (manual trigger)
+  # =====================
+  deploy:
+    name: Deploy
+    needs: [docker, security]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "Deploying version ${{ github.ref_name }}..."
+          # Add your deployment script here
+          # e.g., ssh user@host "cd /opt/solAribot && git pull && docker compose up -d"

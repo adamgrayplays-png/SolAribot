@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+target/
+dist/
+build/
+.cache/
+.venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.local
+.env.production
+*.key
+*.pem
+**/secrets/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Docker
+.docker/
+
+# Rust
+engine/target/
+
+# TypeScript
+orchestrator/dist/
+dashboard/dist/
+
+# Database
+*.db
+*.sqlite
+db/
+
+# Deployment
+deploy/
+*.tar.gz

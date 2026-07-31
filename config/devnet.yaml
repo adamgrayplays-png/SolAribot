@@ -1,0 +1,33 @@
+# =============================================================================
+# SolAribot — Devnet Configuration
+# =============================================================================
+# Overrides default.yaml for development and testing
+# =============================================================================
+
+network:
+  cluster: "devnet"
+  rpc:
+    url: "https://api.devnet.solana.com"
+    fallbacks:
+      - "https://devnet.genesysgo.net"
+    rate_limit: 50
+
+dex:
+  poll_interval_ms: 500  # Slower polling for devnet
+
+arbitrage:
+  min_profit_sol: 0.0001  # Low threshold for testing
+  max_position_sol: 1.0   # Small positions
+  daily_loss_limit_sol: 0.5
+
+ml:
+  min_confidence: 0.5  # Lower bar for testing
+
+risk:
+  max_daily_drawdown_sol: 1.0
+  max_position_pct: 0.2  # 20% of wallet (test funds)
+  sandbox_mode: true  # No real trades on devnet
+
+logging:
+  level: "debug"
+  format: "text"

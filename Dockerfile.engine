@@ -1,0 +1,54 @@
+# =============================================================================
+# SolAribot Rust Engine — Multi-stage Dockerfile
+# Target: ~50MB final image
+# =============================================================================
+
+# ---- Builder Stage ----
+FROM rust:1.81-slim-bullseye AS builder
+
+WORKDIR /app
+
+# Install system dependencies for compiling Solana programs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    libudev-dev \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy manifests for dependency caching
+COPY engine/Cargo.toml engine/Cargo.lock* ./
+COPY Cargo.toml ../
+
+# Create dummy src to cache dependencies
+RUN mkdir -p src && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build --release 2>/dev/null || true
+
+# Copy actual source
+COPY engine/src ./src
+
+# Remove dummy main and rebuild with real source
+RUN rm -f src/main.rs && \
+    cargo build --release
+
+# ---- Runtime Stage ----
+FROM debian:bullseye-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl1.1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -r solAribot && useradd -r -g solAribot -d /app -s /sbin/nologin solAribot
+
+WORKDIR /app
+COPY --from=builder /app/target/release/solAribot-engine ./engine
+
+USER solAribot
+
+EXPOSE 8080
+
+ENTRYPOINT ["./engine"]
+CMD ["--config", "/etc/solAribot/config.yaml"]

@@ -1,0 +1,26 @@
+{
+  "name": "solAribot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered Solana arbitrage trading bot",
+  "workspaces": [
+    "orchestrator",
+    "dashboard"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:orchestrator\" \"npm run dev:dashboard\"",
+    "dev:orchestrator": "npm run dev -w orchestrator",
+    "dev:dashboard": "npm run dev -w dashboard",
+    "build": "npm run build -w orchestrator && npm run build -w dashboard",
+    "build:engine": "cd engine && cargo build --release",
+    "test": "npm run test -w orchestrator && npm run test -w dashboard",
+    "lint": "npm run lint -w orchestrator && npm run lint -w dashboard",
+    "clean": "rm -rf orchestrator/dist dashboard/dist engine/target"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
